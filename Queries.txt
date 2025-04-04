@@ -1,0 +1,70 @@
+🔍 1️⃣ Query for Failed Login Attempts (Event ID 4625)
+This query finds all failed login attempts, groups them by user and IP address, and sorts them by the number of failed attempts.
+
+index=main sourcetype="WinEventLog:Security" EventCode=4625 
+| stats count by Account_Name, IpAddress
+| sort -count
+
+📊 Expected Output:
+List of users who had failed login attempts.
+IP addresses from which failed logins originated.
+Helps detect potential brute-force attacks.
+
+🔍 2️⃣ Query for Successful Logins (Event ID 4624)
+This query finds all successful logins, groups them by user and IP address, and sorts them to see which accounts logged in the most.
+
+index=main sourcetype="WinEventLog:Security" EventCode=4624 
+| stats count by Account_Name, IpAddress
+| sort -count
+
+📊 Expected Output:
+List of users who successfully logged in.
+IP addresses used for successful logins.
+Helps check if an attacker successfully accessed an account.
+
+🔍 3️⃣ Query to Identify Logon Types (Event ID 4624)
+This query helps determine how users logged in (e.g., Remote Desktop, Local Logon, Network Logon).
+
+index=main sourcetype="WinEventLog:Security" EventCode=4624 
+| stats count by Logon_Type, Account_Name, IpAddress
+| sort -count
+
+📊 Expected Output:
+Logon Type 2: Interactive (physical login).
+Logon Type 3: Network logon (shared folders).
+Logon Type 10: Remote Desktop (suspicious if unexpected).
+Helps identify if an attacker accessed the system remotely.
+
+🔍 4️⃣ Query to Detect Brute-Force Attacks (Multiple 4625 Events from the Same IP)
+This query checks for repeated failed login attempts from the same IP address, which may indicate a brute-force attack.
+
+index=main sourcetype="WinEventLog:Security" EventCode=4625 
+| stats count by IpAddress
+| where count > 5
+| sort -count
+
+📊 Expected Output:
+Shows IP addresses with more than 5 failed login attempts.
+Helps detect brute-force attacks.
+
+🔍 5️⃣ Query to Detect Suspicious Login Locations (Compare IPs of 4624 and 4625 Events)
+This query identifies cases where a failed login attempt (4625) and a successful login attempt (4624) happen from the same IP address.
+
+index=main sourcetype="WinEventLog:Security" (EventCode=4624 OR EventCode=4625) 
+| stats values(EventCode) by Account_Name, IpAddress
+| where mvcount(EventCode) > 1
+
+📊 Expected Output:
+Shows cases where the same IP attempted multiple failed logins (4625) and then successfully logged in (4624).
+Helps detect if an attacker guessed the correct password.
+
+🔍 6️⃣ Query to Detect Multiple Successful Logins from Different Locations
+If an attacker logs in from a new location, this query helps identify it.
+
+index=main sourcetype="WinEventLog:Security" EventCode=4624 
+| stats dc(IpAddress) by Account_Name
+| where dc(IpAddress) > 1
+
+📊 Expected Output:
+Shows accounts that logged in from more than one IP address.
+Helps detect account takeovers from different geographic locations.
